@@ -1,0 +1,66 @@
+#@ load("@ytt:data", "data")
+#@ load("common.lib.yaml", "labels", "selectors")
+#@ load("helpers.star", "name")
+
+---
+#@ if data.values.serviceDhcp.enabled:
+apiVersion: v1
+kind: Service
+metadata:
+  name: #@ name(data.values) + "-dhcp"
+  labels: #@ labels(data.values)
+  #@ if data.values.serviceDhcp.annotations:
+  annotations: #@ data.values.serviceDhcp.annotations
+  #@ end
+spec:
+  type: #@ data.values.serviceDhcp.type
+  #@ if data.values.dualStack.enabled and not data.values.serviceDhcp.type == "LoadBalancer":
+  ipFamilies:
+  - IPv4
+  - IPv6
+  ipFamilyPolicy: PreferDualStack
+  #@ end
+  #@ if data.values.serviceDhcp.loadBalancerIP:
+  loadBalancerIP: #@ data.values.serviceDhcp.loadBalancerIP
+  #@ end
+  #@ if data.values.serviceDhcp.type == "NodePort" or data.values.serviceDhcp.type == "LoadBalancer":
+  externalTrafficPolicy: #@ data.values.serviceDhcp.externalTrafficPolicy
+  #@ end
+  ports:
+    - port: #@ data.values.serviceDhcp.port
+      targetPort: client-udp
+      #@ if data.values.serviceDhcp.nodePort and data.values.serviceDhcp.typp == "NodePort":
+      nodePort: #@ data.values.serviceDhcp.nodePort
+      #@ end
+      protocol: UDP
+      name: client-udp
+  selector: #@ selectors(data.values)
+---
+#@ if data.values.dualStack.enabled and data.values.serviceDhcp.type == "LoadBalancer":
+apiVersion: v1
+kind: Service
+metadata:
+  name: #@ name(data.values) + "-dhcp-ipv6"
+  labels: #@ labels(data.values)
+  #@ if data.values.serviceDhcp.annotations:
+  annotations: #@ data.values.serviceDhcp.annotations
+  #@ end
+spec:
+  type: #@ data.values.serviceDhcp.type
+  ipFamilies:
+  - IPv6
+  ipFamilyPolicy: SingleStack
+  #@ if data.values.serviceDhcp.loadBalancerIPv6:
+  loadBalancerIP: #@ data.values.serviceDhcp.loadBalancerIPv6
+  #@ end
+  #@ if data.values.serviceDhcp.type == "NodePort" or data.values.serviceDhcp.type == "LoadBalancer":
+  externalTrafficPolicy: #@ data.values.serviceDhcp.externalTrafficPolicy
+  #@ end
+  ports:
+    - port: 67
+      targetPort: client-udp
+      protocol: UDP
+      name: client-udp
+  selector: #@ selectors(data.values)
+#@ end
+#@ end

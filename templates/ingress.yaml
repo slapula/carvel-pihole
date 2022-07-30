@@ -1,0 +1,35 @@
+#@ load("@ytt:data", "data")
+#@ load("common.lib.yaml", "labels")
+#@ load("helpers.star", "name")
+
+---
+#@ if data.values.ingress.enabled:
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: #@ name(data.values)
+  labels: #@ labels(data.values)
+  #@ if data.values.ingress.annotations:
+  annotations: #@ data.values.ingress.annotations
+  #@ end
+spec:
+  #@ if data.values.ingressClassName:
+  ingressClassName: #@ data.values.ingress.ingressClassName
+  #@ end
+  #@ if data.values.ingress.tls:
+  tls: #@ data.values.ingress.tls
+  #@ end
+  rules:
+  #@ for i in data.values.ingress.hosts:
+    - host: #@ i
+      http:
+        paths:
+          - path: #@ data.values.ingress.path
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: #@ name(data.values) + "-web"
+                port: 
+                  name: http
+  #@ end
+#@ end

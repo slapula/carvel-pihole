@@ -1,0 +1,93 @@
+#@ load("@ytt:data", "data")
+#@ load("common.lib.yaml", "labels", "selectors")
+#@ load("helpers.star", "name")
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: #@ name(data.values) + "-web"
+  labels: #@ labels(data.values)
+  #@ if data.values.serviceWeb.annotations:
+  annotations: #@ data.values.serviceWeb.annotations
+  #@ end
+spec:
+  type: #@ data.values.serviceWeb.type
+  #@ if data.values.dualStack.enabled and not data.values.serviceWeb.type == "LoadBalancer":
+  ipFamilies:
+  - IPv4
+  - IPv6
+  ipFamilyPolicy: PreferDualStack
+  #@ end
+  #@ if data.values.serviceWeb.loadBalancerIP:
+  loadBalancerIP: #@ data.values.serviceWeb.loadBalancerIP
+  #@ end
+  #@ if data.values.serviceWeb.type == "NodePort" or data.values.serviceWeb.type == "LoadBalancer":
+  externalTrafficPolicy: #@ data.values.serviceWeb.externalTrafficPolicy
+  #@ end
+  ports:
+    #@ if data.values.serviceWeb.http.enabled:
+    - port: #@ data.values.serviceWeb.http.port
+      targetPort: http
+      #@ if data.values.serviceWeb.http.nodePort and data.values.serviceWeb.type == "NodePort":
+      nodePort: #@ data.values.serviceWeb.http.nodePort
+      #@ end
+      protocol: TCP
+      name: http
+    #@ end
+    #@ if data.values.serviceWeb.https.enabled:
+    - port: #@ data.values.serviceWeb.https.port
+      targetPort: https
+      #@ if data.values.serviceWeb.https.nodePort and data.values.serviceWeb.type == "NodePort":
+      nodePort: #@ data.values.serviceWeb.https.nodePort
+      #@ end
+      protocol: TCP
+      name: https
+    #@ end
+    #@ if data.values.doh.enabled:
+    - port: 49312
+      protocol: TCP
+      name: cloudflared-met
+    #@ end
+  selector: #@ selectors(data.values)
+---
+#@ if data.values.dualStack.enabled and data.values.serviceWeb.type == "LoadBalancer":
+apiVersion: v1
+kind: Service
+metadata:
+  name: #@ name(data.values) + "-web-ipv6"
+  labels: #@ labels(data.values)
+  #@ if data.values.serviceWeb.annotations:
+  annotations: #@ data.values.serviceWeb.annotations
+  #@ end
+spec:
+  type: #@ data.values.serviceWeb.type
+  ipFamilies:
+  - IPv6
+  ipFamilyPolicy: SingleStack
+  #@ if data.values.serviceWeb.loadBalancerIPv6:
+  loadBalancerIP: #@ data.values.serviceWeb.loadBalancerIPv6
+  #@ end
+  #@ if data.values.serviceWeb.type == "NodePort" or data.values.serviceWeb.type == "LoadBlanacer":
+  externalTrafficPolicy: #@ data.values.serviceWeb.externalTrafficPolicy
+  #@ end
+  ports:
+    #@ if data.values.serviceWeb.http.enabled:
+    - port: #@ data.values.serviceWeb.http.port
+      targetPort: http
+      protocol: TCP
+      name: http
+    #@ end
+    #@ if data.values.serviceWeb.https.enabled:
+    - port: #@ data.values.serviceWeb.https.port
+      targetPort: https
+      protocol: TCP
+      name: https
+    #@ end
+    #@ if data.values.doh.enabled:
+    - port: 49312
+      protocol: TCP
+      name: cloudflared-met
+    #@ end
+  selector: #@ selectors(data.values)
+#@ end

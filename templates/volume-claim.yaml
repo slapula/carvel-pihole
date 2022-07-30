@@ -1,0 +1,23 @@
+#@ load("@ytt:data", "data")
+#@ load("common.lib.yaml", "labels")
+#@ load("helpers.star", "name")
+
+#@ if data.values.persistentVolumeClaim.enabled and not data.values.persistentVolumeClaim.existingClaim:
+apiVersion: "v1"
+kind: "PersistentVolumeClaim"
+metadata:
+  name: #@ name(data.values)
+  labels:
+    component: #@ data.values.persistentVolumeClaim.name
+    #@ labels(data.values)
+  #@ if data.values.persistentVolumeClaim.annotations:
+  annotations: #@ data.values.persistentVolumeClaim.annotations
+  #@ end
+spec:
+  accessModes: #@ data.values.persistentVolumeClaim.accessModes
+  #@ if/end data.values.persistentVolumeClaim.storageClass:
+  storageClassName: #@ data.values.persistentVolumeClaim.storageClass
+  resources:
+    requests:
+      storage: #@ data.values.persistentVolumeClaim.size
+#@ end

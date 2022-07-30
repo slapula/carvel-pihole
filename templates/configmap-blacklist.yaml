@@ -1,0 +1,13 @@
+#@ load("@ytt:data", "data")
+#@ load("common.lib.yaml", "labels")
+#@ load("helpers.star", "name")
+
+#@ if/end data.values.blacklist:
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name:  #@ name(data.values) + "-blacklist"
+  labels: #@ labels(data.values)
+data:
+  adlists.list: #@ data.values.blacklist

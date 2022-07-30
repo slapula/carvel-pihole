@@ -1,0 +1,13 @@
+#@ load("@ytt:data", "data")
+#@ load("common.lib.yaml", "labels")
+#@ load("helpers.star", "name")
+
+#@ if/end data.values.dnsmasq.staticDhcpEntries:
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name:  #@ name(data.values) + "-static-dhcp"
+  labels: #@ labels(data.values)
+data:
+  adlists.list: #@ data.values.staticDhcpEntries

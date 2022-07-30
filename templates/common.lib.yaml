@@ -1,0 +1,12 @@
+#@ load("helpers.star", "name")
+
+#@ def labels(vars):
+app: #@ name(vars)
+chart: #@ "{}-{}".format(vars.chart.name, vars.chart.version).replace("+", "_")
+release: #@ "{}-{}-{}".format(vars.chart.name, vars.chart.version, vars.chart.appVersion).replace("+", "_")
+#@ end
+
+#@ def selectors(vars):
+app: #@ name(vars)
+release: #@ "{}-{}-{}".format(vars.chart.name, vars.chart.version, vars.chart.appVersion).replace("+", "_")
+#@ end

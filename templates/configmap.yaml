@@ -1,0 +1,45 @@
+#@ load("@ytt:data", "data")
+#@ load("common.lib.yaml", "labels")
+#@ load("helpers.star", "name")
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: #@ name(data.values) + "-custom-dnsmasq"
+  labels: #@ labels(data.values)
+#@yaml/text-templated-strings
+data:
+  02-custom.conf: |
+    addn-hosts=/etc/addn-hosts
+    (@ if data.values.dnsmasq.upstreamServers: -@)
+      (@ for i in data.values.dnsmasq.upstreamServers: -@)
+        (@= i @)
+      (@ end @)
+    (@ end @)
+    (@ if data.values.dnsmasq.customDnsEntries: -@)
+      (@ for i in data.values.dnsmasq.customDnsEntries : -@)
+        (@= i @)
+      (@ end @)
+    (@ end @)
+    (@ if data.values.serviceDns.loadBalancerIP: -@)
+      (@ for i in data.values.serviceDns.loadBalancerIP : -@)
+        (@= "dhcp-options=6," + i @)
+      (@ end @)
+    (@ end @)
+    (@ if data.values.dnsmasq.customSettings: -@)
+      (@ for i in data.values.dnsmasq.customSettings : -@)
+        (@= i @)
+      (@ end @)
+    (@ end @)
+  addn-hosts: |
+    (@ if data.values.dnsmasq.additionalHostsEntries: -@)
+      (@ for i in data.values.dnsmasq.additionalHostsEntries: -@)
+        (@= i @)
+      (@ end @)
+    (@ end @)
+  05-pihole-custom-cname.conf: |
+    (@ if data.values.dnsmasq.customCnameEntries: -@)
+      (@ for i in data.values.dnsmasq.customCnameEntries: -@)
+        (@= i @)
+      (@ end @)
+    (@ end @)

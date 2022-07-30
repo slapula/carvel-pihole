@@ -1,0 +1,23 @@
+#@ load("@ytt:data", "data")
+#@ load("/common.lib.yaml", "labels")
+#@ load("/helpers.star", "name")
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: #@ name(data.values) + "-smoke-test"
+  labels: #@ labels(data.values)
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+  - name: hook1-container
+    image: curlimages/curl
+    imagePullPolicy: IfNotPresent
+    command:
+      - sh 
+      - "-c"
+      - #@ "curl http://" + name(data.values) + "-web:80/"
+  restartPolicy: Never
+  terminationGracePeriodSeconds: 0

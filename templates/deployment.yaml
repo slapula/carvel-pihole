@@ -1,0 +1,280 @@
+#@ load("@ytt:data", "data")
+#@ load("common.lib.yaml", "labels", "selectors")
+#@ load("helpers.star", "name")
+#@ load("@ytt:sha256", "sha256")
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: #@ name(data.values) + "-deployment"
+  labels: #@ labels(data.values)
+spec:
+  replicas: #@ data.values.replicaCount
+  strategy:
+    type: #@ data.values.strategyType
+    #@ if data.values.strategyType == "RollingUpdate":
+    rollingUpdate:
+      maxSurge: #@ data.values.maxSurge
+      maxUnavailable: #@ data.values.maxUnavailable
+    #@ end
+  selector:
+    matchLabels: #@ selectors(data.values)
+  template:
+    metadata:
+      annotations:
+        checksum.config.adlists: #@ sha256.sum(data.read("configmap-adlists.yaml"))
+        checksum.config.blacklist: #@ sha256.sum(data.read("configmap-blacklist.yaml"))
+        checksum.config.regex: #@ sha256.sum(data.read("configmap-regex.yaml"))
+        checksum.config.whitelist: #@ sha256.sum(data.read("configmap-whitelist.yaml"))
+        checksum.config.dnsmasqConfig: #@ sha256.sum(data.read("configmap.yaml"))
+        checksum.config.staticDhcpConfig: #@ sha256.sum(data.read("configmap-static-dhcp.yaml"))
+        #@ data.values.podAnnotations
+      labels: #@ labels(data.values)
+    spec:
+      #@ if data.values.antiaff.enabled:
+      affinity:
+        podAntiAffinity:
+        #@ if data.values.antiaff.strict:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+        #@ else:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+        #@ end
+                matchExpressions:
+                - key: release
+                  operator: In
+                  values:
+                  - #@ data.values.antiaff.avoidRelease
+              topologyKey: "kubernetes.io/hostname"
+      #@ end
+      #@ if data.values.podDnsConfig.enabled:
+      dnsPolicy: #@ data.values.podDnsConfig.policy
+      dnsConfig:
+        nameservers: #@ data.values.podDnsConfig.nameservers
+      #@ end
+      hostname: #@ data.values.hostname
+      hostNetwork: #@ data.values.hostNetwork
+      containers:
+        #@ if data.values.monitoring.sidecar.enabled:
+        - name: exporter
+          image: #@ data.values.monitoring.sidecar.image.repository + ":" + data.values.monitoring.sidecar.image.tag
+          imagePullPolicy: #@ data.values.monitoring.sidecar.image.pullPolicy
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          env:
+            - name: PIHOLE_HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: PIHOLE_PORT
+              value: #@ data.values.webHttp
+            - name: PIHOLE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: #@ data.values.admin.passwordKey or "password"
+                  name: #@ data.values.admin.existingSecret or name(data.values) + "-secret"
+          resources: #@ data.values.monitoring.sidecar.resources
+          ports:
+            - containerPort: #@ data.values.monitoring.sidecar.port
+              name: prometheus
+              protocol: TCP
+        #@ end
+        #@ if data.values.doh.enabled:
+        - name: cloudflared
+          image: #@ data.values.doh.repository + ":" + data.values.doh.tag
+          imagePullPolicy: #@ data.values.doh.pullPolicy
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          resources:
+            limits:
+              memory: 128Mi
+          ports:
+            - containerPort: 5053
+              name: cloudflared-udp
+              protocol: UDP
+            - containerPort: 49312
+              name: cloudflared-met
+              protocol: TCP
+          #@ if data.values.doh.envVars:
+          env:
+          #@ for i in data.values.doh.envVars:
+          - name: #@ i.name
+            value: #@ i.value
+          #@ end
+          #@ end
+          #@ if data.values.doh.probes.liveness.enabled:
+          livenessProbe: #@ data.values.doh.probes.liveness.probe
+          #@ end
+        #@ end
+        - name: #@ data.values.chart.name
+          env:
+          - name: 'WEB_PORT'
+            value: #@ data.values.webHttp
+          - name: VIRTUAL_HOST
+            value: #@ data.values.virtualHost
+          - name: WEBPASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: #@ data.values.admin.passwordKey or "password"
+                name: #@ data.values.admin.existingSecret or name(data.values) + "-secret"
+          #@ data.values.extraEnvVars
+          #@ data.values.extraEnvVarsSecret
+          #@ data.values.ftl
+          #@ if data.values.doh.enabled:
+          - name: 'DNS1'
+            value: "127.0.0.1#5053"
+          - name: 'DNS2'
+            value: "127.0.0.1#5053"
+          #@ else:
+          #@ if data.values.DNS1 and data.values.DNS2:
+          - name: 'PIHOLE_DNS_'
+            value: #@ data.values.DNS1 + ";" + data.values.DNS2
+          #@ end
+          #@ end
+          image: #@ data.values.image.repository + ":" + data.values.image.tag
+          imagePullPolicy: #@ data.values.image.pullPolicy
+          securityContext:
+            privileged: #@ data.values.privileged
+          ports:
+          - containerPort: #@ data.values.webHttp
+            name: http
+            protocol: TCP
+          - containerPort: 53
+            name: dns
+            protocol: TCP
+            #@ if data.values.dnsHostPort.enabled:
+            hostPort: #@ data.values.dnsHostPort.port
+            #@ end
+          - containerPort: 53
+            name: dns-udp
+            protocol: UDP
+            #@ if data.values.dnsHostPort.enabled:
+            hostPort: #@ data.values.dnsHostPort.port
+            #@ end
+          - containerPort: #@ data.values.webHttps
+            name: https
+            protocol: TCP
+          - containerPort: 67
+            name: client-udp
+            protocol: UDP
+          #@ if data.values.probes.liveness.enabled:
+          livenessProbe:
+            httpGet:
+              path: /admin.index.php
+              port: #@ data.values.probes.liveness.port
+              scheme: #@ data.values.probes.liveness.scheme
+            initialDelaySeconds: #@ data.values.probes.liveness.initialDelaySeconds
+            failureThreshold: #@ data.values.probes.liveness.failureThreshold
+            timeoutSeconds: #@ data.values.probes.liveness.timeoutSeconds
+          #@ end
+          #@ if data.values.probes.readiness.enabled:
+          readinessProbe:
+            httpGet:
+              path: /admin.index.php
+              port: #@ data.values.probes.readiness.port
+              scheme: #@ data.values.probes.readiness.scheme
+            initialDelaySeconds: #@ data.values.probes.readiness.initialDelaySeconds
+            failureThreshold: #@ data.values.probes.readiness.failureThreshold
+            timeoutSeconds: #@ data.values.probes.readiness.timeoutSeconds
+          #@ end
+          volumeMounts:
+          - mountPath: /etc/pihole
+            name: config
+            #@ if data.values.persistentVolumeClaim.subPath:
+            subPath: #@ data.values.persistentVolumeClaim.subPath
+            #@ end
+          - mountPath: /etc/dnsmasq.d/02-custom.conf
+            name: custom-dnsmasq
+            subPath: 02-custom.conf
+          - mountPath: /etc/addn-hosts
+            name: custom-dnsmasq
+            subPath: addn-hosts
+          - mountPath: /etc/dnsmasq.d/05-pihole-custom-cname.conf
+            name: custom-dnsmasq
+            subPath: 05-pihole-custom-cname.conf
+          #@ if data.values.adlists:
+          - mountPath: /etc/pihole/adlists.list
+            name: adlists
+            subPath: adlists.list
+          #@ end
+          #@ if data.values.blacklist:
+          - mountPath: /etc/pihole/blacklist.txt
+            name: blacklist
+            subPath: blacklist.txt
+          #@ end
+          #@ if data.values.regex:
+          - mountPath: /etc/pihole/regex.list
+            name: regex
+            subPath: regex.list
+          #@ end
+          #@ if data.values.whitelist:
+          - mountPath: /etc/pihole/whitelist.txt
+            name: whitelist
+            subPath: whitelist.txt
+          #@ end
+          #@ if data.values.dnsmasq.staticDhcpEntries:
+          - mountPath: /etc/dnsmasq.d/04-pihole-static-dhcp.conf
+            name: static-dhcp
+            subPath: pihole-static-dhcp.conf
+          #@ end
+          #@ data.values.extraVolumeMounts
+          resources: #@ data.values.resources
+      nodeSelector: #@ data.values.nodeSelector
+      affinity: #@ data.values.affinity
+      tolerations: #@ data.values.tolerations
+      #@ if data.values.priorityClassName:
+      priorityClassName: #@ data.values.priorityClassname
+      #@ end
+      topologySpreadConstraints: #@ data.values.topologySpreadConstraints
+      volumes:
+      - name: config
+        #@ if data.values.persistentVolumeClaim.enabled and data.values.persistentVolumeClaim.existingClaim:
+        persistentVolumeClaim:
+          claimName: #@ data.values.persistentVolumeClaim.existingClaim
+        #@ elif data.values.persistentVolumeClaim.enabled and not data.values.persistentVolumeClaim.existingClaim:
+        persistentVolumeClaim:
+          claimName: #@ name(data.values) + "-pvc"
+        #@ elif data.values.customVolumes.enabled:
+        #@ data.values.customVolumes.config
+        #@ else:
+        emptyDir: {}
+        #@ end
+      - configMap:
+          defaultMode: 420
+          name: #@ name(data.values) + "-custom-dnsmasq"
+        name: custom-dnsmasq
+      #@ if data.values.adlists:
+      - configMap:
+          defaultMode: 420
+          name: #@ name(data.values) + "-adlists"
+        name: adlists
+      #@ end
+      #@ if data.values.whitelist:
+      - configMap:
+          defaultMode: 420
+          name: #@ name(data.values) + "-whitelist"
+        name: whitelist
+      #@ end
+      #@ if data.values.dnsmasq.staticDhcpEntries:
+      - configMap:
+          defaultMode: 420
+          name: #@ name(data.values) + "-static-dhcp"
+        name: static-dhcp
+      #@ end
+      #@ if data.values.blacklist:
+      - configMap:
+          defaultMode: 420
+          name: #@ name(data.values) + "-blacklist"
+        name: blacklist
+      #@ end
+      #@ if data.values.regex:
+      - configMap:
+          defaultMode: 420
+          name: #@ name(data.values) + "-regex"
+        name: regex
+      #@ end
+      #@ data.values.extraVolumes

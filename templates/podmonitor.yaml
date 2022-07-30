@@ -1,0 +1,41 @@
+#@ load("@ytt:data", "data")
+#@ load("common.lib.yaml", "labels", "selectors")
+#@ load("helpers.star", "name")
+
+---
+#@ if data.values.monitoring.podMonitor.enabled:
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: #@ name(data.values) + "-prometheus-exporter"
+  labels: #@ labels(data.values)
+  #@ if data.values.monitoring.podMonitor.namespace:
+  namespace: #@ data.values.monitoring.podMonitor.namespace
+  #@ end
+spec:
+  podMetricsEndpoints:
+  - port: prometheus
+    path: /metrics
+    #@ if data.values.monitoring.podMonitor.interval:
+    interval: #@ data.values.monitoring.podMonitor.interval
+    #@ end
+    #@ if data.values.podMonitor.bearerTokenFile:
+    bearerTokenFile: #@ data.values.monitoring.podMonitor.bearerTokenFile
+    #@ end
+    #@ if data.values.monitoring.podMonitor.bearerTokenSecret:
+    bearerTokenSecret:
+      name: #@ data.values.monitoring.podMonitor.bearerTokenSecret.name
+      key: #@ data.values.monitoring.podMonitor.bearerTokenSecret.key
+      #@ if data.values.monitoring.podMonitor.bearerTokenSecret.optional:
+      optional: #@ data.values.monitoring.podMonitor.bearerTokenSecret.optional
+      #@ end
+    #@ end
+  jobLabel: #@ name(data.values) + "-prometheus-exporter"
+  #@ if data.values.monitoring.podMonitor.namespace:
+  namespaceSelector:
+    matchNames:
+    - #@ data.values.monitoring.podMonitor.namespace
+  #@ end
+  selector:
+    matchLabels: #@ selectors(data.values)
+#@ end
