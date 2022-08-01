@@ -5,6 +5,5 @@ metadata:
   name: carvel-pihole
 authors:
 - name: slapula
-  email: ajsmith@social.coop (Mastodon)
 websites:
 - url: https://github.com/slapula/carvel-pihole
