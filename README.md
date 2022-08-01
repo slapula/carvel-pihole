@@ -204,4 +204,4 @@ NOTE: while authoritative for the most part, some values/types have been adjuste
 
 | Name | Keybase | Mastodon |
 | ---- | ------ | --- |
-| slapula | ajsmith | tbd |
+| slapula | ajsmith | ajsmith@social.coop |
