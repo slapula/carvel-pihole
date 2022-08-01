@@ -1,19 +1,21 @@
-name: 
+name: package-release
 
 on:
-  workflow_dispatch:
   push:
     tags:
       - 'v*'
 
 
 jobs:
-  kapp-controller-release:
-    name: kapp-controller release
+  carvel-pihole-package-release:
+    name: carvel-pihole package release
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
         uses: actions/checkout@v3.0.1
+
+      - name: Install Carvel tools
+        uses: vmware-tanzu/carvel-setup-action@v1
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
@@ -23,7 +25,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push updated Package to Github Container Registry
-        uses: vmware-tanzu/carvel-setup-action@v1
         run: |
           imgpkg push -b ghcr.io/${{ github.actor }}/carvel-pihole:${{ github.ref_name }} -f .
           imgpkg push -b ghcr.io/${{ github.actor }}/carvel-pihole:latest -f .
