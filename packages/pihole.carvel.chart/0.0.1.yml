@@ -2,10 +2,10 @@
 apiVersion: data.packaging.carvel.dev/v1alpha1
 kind: Package
 metadata:
-  name: pihole.carvel.chart.v0.0.1
+  name: pihole.carvel.chart.0.0.1
 spec:
   refName: pihole.carvel.chart
-  version: v0.0.1
+  version: 0.0.1
   releaseNotes: |
         Initial release of the carvel-pihole package
   template:
