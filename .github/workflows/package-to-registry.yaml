@@ -33,4 +33,5 @@ jobs:
       - name: Push updated Package to Github Container Registry
         run: |
           imgpkg push -b ghcr.io/${{ github.actor }}/carvel-pihole:${{ steps.vars.outputs.sha_short }} -f .
+          imgpkg push -b ghcr.io/${{ github.actor }}/carvel-pihole:${{ github.ref_name }} -f .
           imgpkg push -b ghcr.io/${{ github.actor }}/carvel-pihole:latest -f .
