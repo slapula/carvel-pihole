@@ -1,0 +1,13 @@
+---
+apiVersion: data.packaging.carvel.dev/v1alpha1
+kind: PackageMetadata
+metadata:
+  name: carvel-pihole
+spec:
+  displayName: "pihole"
+  longDescription: "Carval chart for deploying pihole on a Kubernetes cluster"
+  shortDescription: "pihole on kubernetes"
+  categories:
+  - dns
+  - ad-blocking
+  - privacy

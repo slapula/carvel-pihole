@@ -1,0 +1,25 @@
+---
+apiVersion: data.packaging.carvel.dev/v1alpha1
+kind: Package
+metadata:
+  name: carvel-pihole.v0.0.1
+spec:
+  refName: carvel-pihole
+  version: v0.0.1
+  releaseNotes: |
+        Initial release of the simple app package
+  template:
+    spec:
+      fetch:
+      - imgpkgBundle:
+          image: ghcr.io/slapula/carvel-pihole
+      template:
+      - ytt:
+          paths:
+          - "templates/"
+      - kbld:
+          paths:
+          - ".imgpkg/images.yml"
+          - "-"
+      deploy:
+      - kapp: {}

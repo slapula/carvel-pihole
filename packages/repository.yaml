@@ -1,0 +1,9 @@
+---
+apiVersion: packaging.carvel.dev/v1alpha1
+kind: PackageRepository
+metadata:
+  name: pihole-repository
+spec:
+  fetch:
+    imgpkgBundle:
+      image: ghcr.io/slapula/carvel-pihole

@@ -1,6 +1,6 @@
 # pihole
 
-Installs pihole in kubernetes (using Carvel Tools)
+Installs pihole on kubernetes (using Carvel Tools)
 
 ## Source Code
 
